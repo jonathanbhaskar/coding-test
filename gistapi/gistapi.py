@@ -11,6 +11,7 @@ providing a search across all public Gists for a given Github account.
 
 import requests
 from flask import Flask, jsonify, request
+import re
 
 
 # *The* app object
@@ -34,16 +35,17 @@ def gists_for_user(username):
         username (string): the user to query gists for
 
     Returns:
-        The dict parsed from the json response from the Github API.  See
-        the above URL for details of the expected structure.
+        The status code and the dict parsed from the json response from the Github API.
+        See the above URL for details of the expected structure.
     """
     gists_url = 'https://api.github.com/users/{username}/gists'.format(
             username=username)
     response = requests.get(gists_url)
     # BONUS: What failures could happen?
+    # I return the status code to check for invalid users and errors
     # BONUS: Paging? How does this work for users with tons of gists?
 
-    return response.json()
+    return response.status_code, response.json()
 
 
 @app.route("/api/v1/search", methods=['POST'])
@@ -65,22 +67,34 @@ def search():
     pattern = post_data['pattern']
 
     result = {}
-    gists = gists_for_user(username)
-    # BONUS: Handle invalid users?
-
-    for gist in gists:
-        # REQUIRED: Fetch each gist and check for the pattern
-        # BONUS: What about huge gists?
-        # BONUS: Can we cache results in a datastore/db?
-        pass
-
     result['status'] = 'success'
     result['username'] = username
     result['pattern'] = pattern
     result['matches'] = []
 
-    return jsonify(result)
+    status, gists = gists_for_user(username)
+    if status == 404:
+        result['status'] = 'invalid user'
 
+    elif status == 500:
+        result['status'] = 'github error'
+
+    if status == 200:
+        for gist in gists:
+            # REQUIRED: Fetch each gist and check for the pattern
+            # BONUS: What about huge gists?
+            # BONUS: Can we cache results in a datastore/db?
+
+            # A gist can have multiple files, so looping through files
+            for f in gist['files'].itervalues():
+                response = requests.get(f['raw_url'])
+                text = response.text
+                regex = re.compile(r'{}'.format(pattern))
+                if regex.search(text) is not None:
+                    result['matches'].append(gist['html_url'])
+                    break
+
+    return jsonify(result)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8000)
