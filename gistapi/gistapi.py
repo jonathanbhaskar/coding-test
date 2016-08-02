@@ -51,6 +51,9 @@ def gists_for_user(username):
     elif response.status_code == 500:
         status = 'github error'
 
+    elif response.status_code == 403:
+        status = 'forbidden'
+
     elif response.status_code == 200:
         status = 'success'
         gists = response.json()
@@ -125,7 +128,6 @@ def search():
                             'url': gist['html_url'],
                             'filename': f['filename']
                         })
-                    break
 
     return jsonify(result)
 
