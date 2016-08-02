@@ -10,9 +10,8 @@ providing a search across all public Gists for a given Github account.
 """
 
 import requests
-from flask import Flask, jsonify, request
 import re
-
+from flask import Flask, jsonify, request
 
 # *The* app object
 app = Flask(__name__)
@@ -61,6 +60,7 @@ def gists_for_user(username):
         while response.json():
             response = requests.get(gists_url + '?page=' + str(i))
             gists += response.json()
+            i += 1
 
     return status, gists
 
@@ -107,6 +107,9 @@ def search():
                 result['status'] = 'more than 300 files in a gist'
 
             # BONUS: Can we cache results in a datastore/db?
+            # We could, but we would have to store the results per user per regex. I don't think a
+            # a query would be repeated enough to justify this optimization. We could cache the
+            # contents of a gist to save the time taken to make the GET requests.
 
             # REQUIRED: Fetch each gist and check for the pattern
             # A gist can have multiple files, so looping through files
@@ -115,7 +118,13 @@ def search():
                 text = response.text
                 regex = re.compile(r'{}'.format(pattern))
                 if regex.search(text) is not None:
-                    result['matches'].append(gist['html_url'])
+                    # It is useful to get the names of the files matched also, as there could be
+                    # upto 300 files in a gist
+                    result['matches'].append(
+                        {
+                            'url': gist['html_url'],
+                            'filename': f['filename']
+                        })
                     break
 
     return jsonify(result)
