@@ -48,10 +48,10 @@ def gists_for_user(username):
     if response.status_code == 404:
         status = 'invalid user'
 
-    elif status == 500:
+    elif response.status_code == 500:
         status = 'github error'
 
-    elif status == 200:
+    elif response.status_code == 200:
         status = 'success'
         gists = response.json()
         # BONUS: Paging? How does this work for users with tons of gists?

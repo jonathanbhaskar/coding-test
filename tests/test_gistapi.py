@@ -40,6 +40,12 @@ def test_search(client):
     expected_dict = {'status': 'success',
                      'username': 'justdionysus',
                      'pattern': 'TerbiumLabsChallenge_[0-9]+',
-                     'matches': ['https://gist.github.com/justdionysus/6b2972aa971dd605f524']}
+                     'matches': [
+                        {
+                            'filename': 'gistfile1.txt',
+                            'url': 'https://gist.github.com/6b2972aa971dd605f524'
+                        }
+                      ]
+                    }
     assert result_dict == expected_dict
 
