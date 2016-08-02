@@ -41,11 +41,28 @@ def gists_for_user(username):
     gists_url = 'https://api.github.com/users/{username}/gists'.format(
             username=username)
     response = requests.get(gists_url)
-    # BONUS: What failures could happen?
-    # I return the status code to check for invalid users and errors
-    # BONUS: Paging? How does this work for users with tons of gists?
+    status = ''
+    gists = []
 
-    return response.status_code, response.json()
+    # BONUS: What failures could happen?
+    # I return the status with the gist
+    if response.status_code == 404:
+        status = 'invalid user'
+
+    elif status == 500:
+        status = 'github error'
+
+    elif status == 200:
+        status = 'success'
+        gists = response.json()
+        # BONUS: Paging? How does this work for users with tons of gists?
+        # For users with more than 30 gists, the URL needs to be paginated.
+        i = 2
+        while response.json():
+            response = requests.get(gists_url + '?page=' + str(i))
+            gists += response.json()
+
+    return status, gists
 
 
 @app.route("/api/v1/search", methods=['POST'])
@@ -61,30 +78,37 @@ def search():
         indicating any failure conditions.
     """
     post_data = request.get_json()
-    # BONUS: Validate the arguments?
 
     username = post_data['username']
     pattern = post_data['pattern']
 
     result = {}
-    result['status'] = 'success'
     result['username'] = username
     result['pattern'] = pattern
     result['matches'] = []
 
+    # BONUS: Validate the arguments?
+    # I could not find specific rules for usernames. So I'm validating for empty arguments alone
+    if not username.strip() or not pattern.strip():
+        result['status'] = 'Invalid username, pattern'
+        return jsonify(result)
+
     status, gists = gists_for_user(username)
-    if status == 404:
-        result['status'] = 'invalid user'
+    result['status'] = status
 
-    elif status == 500:
-        result['status'] = 'github error'
-
-    if status == 200:
+    if status == 'success':
         for gist in gists:
-            # REQUIRED: Fetch each gist and check for the pattern
+
             # BONUS: What about huge gists?
+            # The API documentation says the repo needs to be cloned to GET the content of a file
+            # larger than 10mb. But just a GET request to the file URL does work.
+            # For gists containing more than 300 files, only the first 300 are accessible.
+            if gist['truncated']:
+                result['status'] = 'more than 300 files in a gist'
+
             # BONUS: Can we cache results in a datastore/db?
 
+            # REQUIRED: Fetch each gist and check for the pattern
             # A gist can have multiple files, so looping through files
             for f in gist['files'].itervalues():
                 response = requests.get(f['raw_url'])
